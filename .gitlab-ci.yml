@@ -1,0 +1,54 @@
+cache: &global_cache
+  key: zinza-bundler-cache
+  paths:
+    - vendor/bundler
+  policy: pull-push
+
+stages:
+  - rubocop
+  - rspec
+services:
+  - docker:dind
+  - postgres:latest
+
+rubocop:
+  image: ruby:2.5.1
+  cache:
+    <<: *global_cache
+  stage: rubocop
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq nodejs
+    - gem install bundler --no-ri --no-rdoc
+    - bundle install --jobs $(nproc) --path=vendor/bundler "${FLAGS[@]}"
+
+  script:
+    - bundle exec rubocop
+
+rspec:
+  image: ruby:2.5.1
+  cache:
+    <<: *global_cache
+  stage: rspec
+  variables:
+    POSTGRES_DB: zinza_test
+    POSTGRES_USER: dbuser
+    POSTGRES_PASSWORD: dbpass
+    RAILS_ENV: test
+    HOST: localhost
+    PORT: 3000
+    DB_USER: dbuser
+    DB_PASSWORD: dbpass
+    DB_HOST: 127.0.0.1
+    DB_ADAPTER: postgresql
+    SECRET_KEY_BASE: super_long_secret_key_base
+    MAILER_SENDER_ADDRESS: noreply@example.com
+    FIREBASE_PROJECT_ID: fir-ui-demo-84a6c
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq nodejs
+    - gem install bundler --no-ri --no-rdoc
+    - bundle install --jobs $(nproc) --path=vendor/bundler "${FLAGS[@]}"
+    - chmod +x ./docker/web/wait-for-it.sh
+  script:
+    - ./docker/web/wait-for-it.sh localhost:5432
+    - bundle exec rake db:test:prepare
+    - bundle exec rspec

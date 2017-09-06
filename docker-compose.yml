@@ -1,0 +1,34 @@
+version: '3.1'
+
+services:
+  psql:
+    image: postgres:10.6
+    environment:
+      POSTGRES_USER: "dbuser"
+      POSTGRES_PASSWORD: "dbpass"
+
+  web:
+    tty: true
+    stdin_open: true
+    command: sh /docker-entrypoint.sh
+    build: ./docker/web
+    links:
+      - psql
+    ports:
+      - 3000:3000
+    volumes:
+      - .:/app:cached
+      - bundle_cache:/app/vendor/bundle
+    environment:
+      HOST: localhost
+      PORT: 3000
+      DB_USER: "dbuser"
+      DB_PASSWORD: "dbpass"
+      DB_HOST: "psql"
+      DB_ADAPTER: "postgresql"
+      SECRET_KEY_BASE: super_long_secret_key_base
+      MAILER_SENDER_ADDRESS: noreply@example.com
+      RAILS_SERVE_STATIC_FILES: 'true'
+
+volumes:
+  bundle_cache:
